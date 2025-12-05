@@ -13,7 +13,7 @@ using namespace std;
 
 
 // Add prototypes of helper functions here
-void recurse(std::string& current, size_t position, string floating, const string& in, const std::set<string>& dict, set<string>& results);
+void recurse(std::string& current, size_t position, int floatCount[26], const std::string& pattern, const std::set<string>& dict, set<string>& results);
 
 // Definition of primary wordle function
 std::set<std::string> wordle(
@@ -28,68 +28,79 @@ std::set<std::string> wordle(
 
     // Initialize current to in
     std::string current = in;
+
+    int floatCount[26] = {0};
+    for(char c : floating){
+        floatCount[c-'a']++;
+    }
+
+
     // Recurse
-    recurse(current, 0, floating, in, dict, results);
+    recurse(current, 0, floatCount, in, dict, results);
 
     return results;
 
 }
 
 // Recurse function
-void recurse(std::string& current, size_t position, string floating, const string& in, const std::set<string>& dict, set<string>& results){
+void recurse(std::string& current, size_t position, int floatCount[26], const std::string& pattern, const std::set<string>& dict, set<string>& results){
     // Base case
     if(position == current.length()){
+
+        // Check if count is 0 and all floating letters are used
+        bool isUsed = true;
+        for(int i=0; i<26; i++){
+            if(floatCount[i] > 0){
+                isUsed = false;
+                break;
+            }
+        }
+
         // Check if there are floating letters and if word exists in dictionary
-        if(floating.empty() && dict.find(current) != dict.end()){
+        if(isUsed && dict.find(current) != dict.end()){
             results.insert(current);
         }
         return;
     }
 
     // Check if letter is fixed and recurse
-    if(in[position] != '-'){
-        // Insert the set letter to current
-        current[position] = in[position];
-        recurse(current, position+1, floating, in, dict, results);
+    if(pattern[position] != '-'){
+        char fixedChar = pattern[position];
+        current[position] = fixedChar;
+
+        recurse(current, position+1, floatCount, pattern, dict, results);
+        
         return;
     }
 
-    // Update the positions left based on word length and positions filled
-    size_t positionsRemaining = current.length() - position - 1;
-
-    // Loop through the floating letters
-    for(size_t i=0; i < floating.length(); i++){
-        // Check for remaining position space
-        if(floating.length() - 1 <= positionsRemaining){
-            current[position] = floating[i];
-
-            // Remove floating[i] from floating and store in a new string
-            std::string newFloating = floating.substr(0, i) + floating.substr(i+1);
-
-            // Recurse
-            recurse(current, position + 1, newFloating, in, dict, results);
+    // Test out all letters for the dash
+    for(int i=0; i<26; i++){
+        if(floatCount[i]>0){
+            current[position] = 'a' + i;
+            floatCount[i]--;
+            recurse(current, position+1, floatCount, pattern, dict, results);
+            floatCount[i]++;
+            current[position] = '-';
         }
     }
 
-    // Substitute in other letters and see if they make valid words
-    if(positionsRemaining >= floating.length()){
-        for(char c = 'a'; c <= 'z'; c++){
-            // Check if this letter is not in floating
-            bool inFloating = false;
-            // Loop through and compare each letter with floating
-            for(char d : floating){
-                if(d == c){
-                    inFloating = true;
-                    break;
-                }
-            }
-            if(!inFloating){
+    // Determine the number of floating letters needed to be put into a spot
+    int floatingRemaining = 0;
+    for(int i=0; i<26; i++){
+        floatingRemaining += floatCount[i];
+    }
+
+    // Check if there are enough positons for the number of floating letters left and test letters
+    if(floatingRemaining <= static_cast<int>(current.length()-position)-1){
+        for(char c='a'; c<='z'; c++){
+            if(floatCount[c-'a'] == 0){
                 current[position] = c;
-                // Recurse
-                recurse(current, position + 1, floating, in, dict, results);
+                recurse(current, position+1, floatCount, pattern, dict, results);
+                current[position] = '-';
             }
         }
     }
+
 }
 
 
